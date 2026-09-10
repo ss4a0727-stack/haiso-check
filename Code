@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>行き先確認プロトタイプ</title>
+<style>
+  :root{
+    --bg: #14171a;
+    --panel: #1d2226;
+    --panel-2: #242a2f;
+    --text: #eef1f0;
+    --muted: #8b959a;
+    --amber: #e8a33d;
+    --green: #4c9a6a;
+    --red: #d2542d;
+    --line: #33393e;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  header {
+    margin-bottom: 20px;
+  }
+  .eyebrow {
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    margin: 0 0 4px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  select {
+    width: 100%;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 16px;
+    appearance: none;
+  }
+  .mic-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 0 8px;
+  }
+  .mic-btn {
+    width: 108px;
+    height: 108px;
+    border-radius: 50%;
+    border: none;
+    background: var(--panel-2);
+    border: 2px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    touch-action: manipulation;
+  }
+  .mic-btn.listening {
+    border-color: var(--amber);
+    background: rgba(232, 163, 61, 0.12);
+  }
+  .mic-btn svg { width: 40px; height: 40px; }
+  .mic-hint {
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--muted);
+    text-align: center;
+    min-height: 20px;
+  }
+  .readout {
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    min-height: 32px;
+  }
+  .readout-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .readout-text {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 18px;
+  }
+  .status {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+  .status.show { display: flex; }
+  .status.match { background: rgba(76, 154, 106, 0.15); color: var(--green); border: 1px solid rgba(76,154,106,0.4); }
+  .status.mismatch { background: rgba(210, 84, 45, 0.15); color: var(--red); border: 1px solid rgba(210,84,45,0.4); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  .sign-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  input[type="text"] {
+    width: 100%;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 11px 12px;
+    font-size: 15px;
+  }
+  input[type="text"]:disabled { opacity: 0.4; }
+  .confirm-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 13px;
+    border-radius: 10px;
+    border: none;
+    background: var(--green);
+    color: #0f1512;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .confirm-btn:disabled {
+    background: var(--panel-2);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  .log-title {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .log-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .log-item:last-child { border-bottom: none; }
+  .log-store { font-weight: 600; }
+  .log-meta { color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 14px; }
+  .unsupported {
+    background: rgba(210, 84, 45, 0.12);
+    border: 1px solid rgba(210,84,45,0.4);
+    color: var(--red);
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">プロトタイプ・ダミーデータ版</p>
+    <h1>台車 行き先確認</h1>
+  </header>
+
+  <div id="unsupportedBox" class="card unsupported" style="display:none;"></div>
+
+  <div class="card">
+    <label for="destSelect">この台車の行き先(発注データより・ダミー)</label>
+    <select id="destSelect"></select>
+
+    <div class="mic-row">
+      <button class="mic-btn" id="micBtn" aria-label="タップして話す">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/>
+          <path d="M19 11a7 7 0 0 1-14 0"/>
+          <path d="M12 18v3"/>
+        </svg>
+      </button>
+      <p class="mic-hint" id="micHint">タップして店舗名を読み上げる</p>
+    </div>
+
+    <div class="readout">
+      <div class="readout-label">認識結果</div>
+      <div class="readout-text" id="readoutText">―</div>
+    </div>
+
+    <div class="status" id="statusBox">
+      <span class="dot"></span>
+      <span id="statusText"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>二者確認サイン(一致した場合のみ入力可)</label>
+    <div class="sign-row">
+      <input type="text" id="signLoader" placeholder="積み込み担当" disabled>
+      <input type="text" id="signDriver" placeholder="ドライバー" disabled>
+    </div>
+    <button class="confirm-btn" id="confirmBtn" disabled>この台車を確定する</button>
+  </div>
+
+  <div class="card">
+    <p class="log-title">確定ログ(このセッション内)</p>
+    <div id="logList"><p class="empty">まだ確定した台車はありません</p></div>
+  </div>
+</div>
+
+<script>
+  // ダミーの発注データ:本来は社内システムから取得する想定
+  const destinations = ["西新宿店", "東新宿店", "中野本店", "荻窪店", "吉祥寺店", "三鷹北口店"];
+
+  const destSelect = document.getElementById('destSelect');
+  destinations.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    destSelect.appendChild(opt);
+  });
+
+  const micBtn = document.getElementById('micBtn');
+  const micHint = document.getElementById('micHint');
+  const readoutText = document.getElementById('readoutText');
+  const statusBox = document.getElementById('statusBox');
+  const statusText = document.getElementById('statusText');
+  const signLoader = document.getElementById('signLoader');
+  const signDriver = document.getElementById('signDriver');
+  const confirmBtn = document.getElementById('confirmBtn');
+  const logList = document.getElementById('logList');
+
+  let isMatched = false;
+  let logs = [];
+
+  function normalize(s) {
+    return s.replace(/\s+/g, '').replace(/店$/, '');
+  }
+
+  function evaluate(recognized) {
+    const expected = destSelect.value;
+    const ok = normalize(recognized).includes(normalize(expected)) || normalize(expected).includes(normalize(recognized));
+    isMatched = ok;
+    statusBox.classList.remove('match', 'mismatch');
+    statusBox.classList.add('show', ok ? 'match' : 'mismatch');
+    statusText.textContent = ok
+      ? `一致:「${expected}」で間違いありません`
+      : `不一致:選択中は「${expected}」です。読み上げ内容を確認してください`;
+    signLoader.disabled = !ok;
+    signDriver.disabled = !ok;
+    if (!ok) { signLoader.value = ''; signDriver.value = ''; }
+    updateConfirmState();
+  }
+
+  function updateConfirmState() {
+    confirmBtn.disabled = !(isMatched && signLoader.value.trim() && signDriver.value.trim());
+  }
+  signLoader.addEventListener('input', updateConfirmState);
+  signDriver.addEventListener('input', updateConfirmState);
+
+  confirmBtn.addEventListener('click', () => {
+    logs.unshift({
+      store: destSelect.value,
+      loader: signLoader.value.trim(),
+      driver: signDriver.value.trim(),
+      time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+    });
+    renderLog();
+    // reset for next cart
+    readoutText.textContent = '―';
+    statusBox.classList.remove('show');
+    signLoader.value = '';
+    signDriver.value = '';
+    signLoader.disabled = true;
+    signDriver.disabled = true;
+    isMatched = false;
+    confirmBtn.disabled = true;
+  });
+
+  function renderLog() {
+    if (logs.length === 0) {
+      logList.innerHTML = '<p class="empty">まだ確定した台車はありません</p>';
+      return;
+    }
+    logList.innerHTML = logs.map(l => `
+      <div class="log-item">
+        <div>
+          <div class="log-store">${l.store}</div>
+          <div class="log-meta">${l.loader} ・ ${l.driver}</div>
+        </div>
+        <div class="log-meta">${l.time}</div>
+      </div>
+    `).join('');
+  }
+
+  // --- 音声認識 ---
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    document.getElementById('unsupportedBox').style.display = 'block';
+    document.getElementById('unsupportedBox').textContent =
+      'このブラウザは音声認識に対応していません。iPadのSafari(https経由)でお試しください。';
+    micBtn.disabled = true;
+  } else {
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ja-JP';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    let listening = false;
+
+    micBtn.addEventListener('click', () => {
+      if (listening) return;
+      try {
+        recognition.start();
+      } catch (e) {
+        // すでに開始している場合など
+      }
+    });
+
+    recognition.addEventListener('start', () => {
+      listening = true;
+      micBtn.classList.add('listening');
+      micHint.textContent = '聞き取り中…';
+    });
+
+    recognition.addEventListener('result', (event) => {
+      const text = event.results[0][0].transcript;
+      readoutText.textContent = text;
+      evaluate(text);
+    });
+
+    recognition.addEventListener('end', () => {
+      listening = false;
+      micBtn.classList.remove('listening');
+      micHint.textContent = 'タップして店舗名を読み上げる';
+    });
+
+    recognition.addEventListener('error', (event) => {
+      listening = false;
+      micBtn.classList.remove('listening');
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        micHint.textContent = 'マイクの使用が許可されていません(設定を確認してください)';
+      } else {
+        micHint.textContent = `エラー: ${event.error}`;
+      }
+    });
+  }
+</script>
+</body>
+</html>
