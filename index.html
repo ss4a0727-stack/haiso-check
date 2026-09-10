@@ -140,16 +140,39 @@
     gap: 10px;
     margin-top: 4px;
   }
+  .field-mic {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
   input[type="text"] {
     width: 100%;
     background: var(--panel-2);
     color: var(--text);
     border: 1px solid var(--line);
     border-radius: 10px;
-    padding: 11px 12px;
+    padding: 11px 40px 11px 12px;
     font-size: 15px;
   }
   input[type="text"]:disabled { opacity: 0.4; }
+  .mic-mini {
+    position: absolute;
+    right: 4px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .mic-mini svg { width: 18px; height: 18px; }
+  .mic-mini.listening { color: var(--amber); }
+  .mic-mini:disabled { opacity: 0.3; cursor: not-allowed; }
   .confirm-btn {
     width: 100%;
     margin-top: 14px;
@@ -233,8 +256,26 @@
   <div class="card">
     <label>二者確認サイン(一致した場合のみ入力可)</label>
     <div class="sign-row">
-      <input type="text" id="signLoader" placeholder="積み込み担当" disabled>
-      <input type="text" id="signDriver" placeholder="ドライバー" disabled>
+      <div class="field-mic">
+        <input type="text" id="signLoader" placeholder="積み込み担当" disabled>
+        <button type="button" class="mic-mini" id="micLoader" disabled aria-label="音声入力">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/>
+            <path d="M19 11a7 7 0 0 1-14 0"/>
+            <path d="M12 18v3"/>
+          </svg>
+        </button>
+      </div>
+      <div class="field-mic">
+        <input type="text" id="signDriver" placeholder="ドライバー" disabled>
+        <button type="button" class="mic-mini" id="micDriver" disabled aria-label="音声入力">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/>
+            <path d="M19 11a7 7 0 0 1-14 0"/>
+            <path d="M12 18v3"/>
+          </svg>
+        </button>
+      </div>
     </div>
     <button class="confirm-btn" id="confirmBtn" disabled>この台車を確定する</button>
   </div>
@@ -264,6 +305,8 @@
   const statusText = document.getElementById('statusText');
   const signLoader = document.getElementById('signLoader');
   const signDriver = document.getElementById('signDriver');
+  const micLoader = document.getElementById('micLoader');
+  const micDriver = document.getElementById('micDriver');
   const confirmBtn = document.getElementById('confirmBtn');
   const logList = document.getElementById('logList');
 
@@ -285,6 +328,8 @@
       : `不一致:選択中は「${expected}」です。読み上げ内容を確認してください`;
     signLoader.disabled = !ok;
     signDriver.disabled = !ok;
+    micLoader.disabled = !ok;
+    micDriver.disabled = !ok;
     if (!ok) { signLoader.value = ''; signDriver.value = ''; }
     updateConfirmState();
   }
@@ -310,6 +355,8 @@
     signDriver.value = '';
     signLoader.disabled = true;
     signDriver.disabled = true;
+    micLoader.disabled = true;
+    micDriver.disabled = true;
     isMatched = false;
     confirmBtn.disabled = true;
   });
@@ -382,6 +429,38 @@
         micHint.textContent = `エラー: ${event.error}`;
       }
     });
+
+    // 名前欄用(積み込み担当・ドライバー)の音声入力
+    function wireNameMic(button, input) {
+      const fieldRecognition = new SpeechRecognition();
+      fieldRecognition.lang = 'ja-JP';
+      fieldRecognition.interimResults = false;
+      fieldRecognition.maxAlternatives = 1;
+      let fieldListening = false;
+
+      button.addEventListener('click', () => {
+        if (button.disabled || fieldListening) return;
+        try { fieldRecognition.start(); } catch (e) {}
+      });
+      fieldRecognition.addEventListener('start', () => {
+        fieldListening = true;
+        button.classList.add('listening');
+      });
+      fieldRecognition.addEventListener('result', (event) => {
+        input.value = event.results[0][0].transcript;
+        updateConfirmState();
+      });
+      fieldRecognition.addEventListener('end', () => {
+        fieldListening = false;
+        button.classList.remove('listening');
+      });
+      fieldRecognition.addEventListener('error', () => {
+        fieldListening = false;
+        button.classList.remove('listening');
+      });
+    }
+    wireNameMic(micLoader, signLoader);
+    wireNameMic(micDriver, signDriver);
   }
 </script>
 </body>
